@@ -240,9 +240,9 @@
                 // Panic Factor - 1.2x on down moves
                 let panicFactor = (c.momentum < 0) ? 1.2 : 1.0;
 
-                // Momentum Persistence - 0.65
+                // Momentum Persistence - 0.98
                 let noise = (Math.random() - 0.5) * 0.005;
-                c.momentum = (c.momentum * 0.65) + (stretch * 0.02) + noise;
+                c.momentum = (c.momentum * 0.98) + (stretch * 0.02) + noise;
 
                 if(c.momentum > 0.05) c.momentum = 0.05;
                 if(c.momentum < -0.05) c.momentum = -0.05;
