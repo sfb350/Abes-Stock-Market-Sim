@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis Terminal V10.5 - Auto-Trader Edition</title>
+    <style>
+        :root {
+            --bg-dark: #0b0e11; --panel-bg: #181a20; --panel-hover: #2b3139;
+            --text-main: #eaecef; --text-muted: #848e9c;
+            --up-color: #0ecb81; --down-color: #f6465d; --value-color: #3b82f6;
+            --accent: #fcd535; --ai-color: #a64dff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        header { background-color: var(--panel-bg); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2b3139; }
+        .logo { font-size: 1.5rem; font-weight: bold; color: var(--accent); letter-spacing: 1px; }
+        
+        .tabs { display: flex; gap: 10px; }
+        .tab-btn { background: none; border: 1px solid #2b3139; color: var(--text-muted); padding: 8px 16px; cursor: pointer; border-radius: 4px; font-weight: bold; transition: 0.2s;}
+        .tab-btn.active { background: var(--panel-hover); color: var(--text-main); border-color: var(--accent); }
+
+        .header-controls { display: flex; gap: 15px; align-items: center; }
+        
+        /* AI Button */
+        .ai-btn { background: rgba(166, 77, 255, 0.1); border: 1px solid var(--ai-color); color: var(--ai-color); padding: 8px 16px; cursor: pointer; border-radius: 4px; font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 8px;}
+        .ai-btn:hover, .ai-btn.active { background: var(--ai-color); color: white; box-shadow: 0 0 10px rgba(166, 77, 255, 0.5);}
+
+        .speed-panel { background: var(--bg-dark); padding: 5px; border-radius: 6px; display: flex; gap: 5px; border: 1px solid #2b3139;}
+        .speed-btn { background: transparent; border: none; color: var(--text-muted); padding: 5px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 0.85rem;}
+        .speed-btn.active { background: var(--accent); color: #000; }
+
+        .container { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+        /* Sidebar & All-Time Graph */
+        .market-sidebar { width: 380px; background-color: var(--bg-dark); border-right: 1px solid #2b3139; display: flex; flex-direction: column; z-index: 10;}
+        .sidebar-account { padding: 20px; background: linear-gradient(180deg, var(--panel-bg), transparent); border-bottom: 1px solid #2b3139; }
+        .sb-acc-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .sb-acc-label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .sb-acc-val { font-size: 1.1rem; font-weight: bold; }
+        
+        .all-time-box { margin-top: 15px; background: rgba(0,0,0,0.3); border: 1px solid #2b3139; border-radius: 4px; height: 60px; padding: 5px; position: relative;}
+        #allTimeCanvas { width: 100%; height: 100%; }
+
+        .search-box { padding: 10px 15px; }
+        .search-box input { width: 100%; padding: 10px; background: var(--panel-hover); border: 1px solid #2b3139; color: white; border-radius: 4px; outline: none; }
+        .market-list { flex: 1; overflow-y: auto; }
+        
+        .stock-item { display: flex; justify-content: space-between; padding: 12px 20px; cursor: pointer; border-bottom: 1px solid #181a20; }
+        .stock-item:hover, .stock-item.active { background-color: var(--panel-hover); border-left: 3px solid var(--accent); }
+
+        /* Main Views */
+        .view-panel { flex: 1; display: none; flex-direction: column; background-color: var(--bg-dark); overflow-y: auto; padding: 30px; z-index: 5;}
+        .view-panel.active { display: flex; }
+
+        .chart-container { background: var(--panel-bg); border-radius: 8px; padding: 15px; margin-bottom: 20px; height: 320px; border: 1px solid #2b3139;}
+        .trade-panel { background-color: var(--panel-bg); padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #2b3139;}
+        .qty-input { background: var(--bg-dark); border: 1px solid #2b3139; color: white; padding: 10px; width: 80px; border-radius: 4px; text-align: center;}
+        
+        .action-btn { padding: 10px 20px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .btn-buy { background-color: var(--up-color); color: white; }
+        .btn-sell { background-color: var(--down-color); color: white; }
+
+        .mock-panel { background: var(--panel-bg); border: 1px solid #2b3139; padding: 20px; border-radius: 8px; margin-bottom: 15px; }
+
+        /* FLOATING AI TERMINAL WINDOW */
+        .ai-window { position: absolute; top: 20px; right: 20px; width: 450px; height: 400px; background: rgba(24, 26, 32, 0.95); border: 1px solid var(--ai-color); border-radius: 8px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.8); z-index: 100; transition: opacity 0.3s; backdrop-filter: blur(10px);}
+        .ai-window.hidden { opacity: 0; pointer-events: none; }
+        .ai-header { background: rgba(166, 77, 255, 0.2); padding: 15px; font-weight: bold; color: var(--ai-color); border-bottom: 1px solid var(--ai-color); display: flex; justify-content: space-between; align-items: center;}
+        .ai-status-indicator { width: 10px; height: 10px; background: var(--ai-color); border-radius: 50%; box-shadow: 0 0 8px var(--ai-color); animation: pulse 1.5s infinite;}
+        .ai-logs { flex: 1; overflow-y: auto; padding: 15px; font-family: "Courier New", Courier, monospace; font-size: 0.8rem; display: flex; flex-direction: column; gap: 5px; }
+        .ai-log-entry { border-left: 2px solid #333; padding-left: 8px; margin-bottom: 4px; }
+        .ai-log-time { color: var(--text-muted); }
+        .ai-log-buy { color: var(--up-color); }
+        .ai-log-sell { color: var(--down-color); }
+
+        @keyframes pulse { 0% { opacity: 0.5; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0.5; transform: scale(0.8); } }
+
+        .up { color: var(--up-color); }
+        .down { color: var(--down-color); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">AEGIS V10.5</div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('terminal')">Trading Desk</button>
+            <button class="tab-btn" onclick="switchTab('portfolio')">Portfolio</button>
+            <button class="tab-btn" onclick="switchTab('research')">Research</button>
+            <button class="tab-btn" onclick="switchTab('media')">Media</button>
+            <button class="tab-btn" onclick="switchTab('intelligence')" style="color: var(--accent);">AI Analyst</button>
+        </div>
+        <div class="header-controls">
+            <button class="ai-btn" id="ai-toggle-btn" onclick="toggleAI()">
+                <span>🤖</span> AUTO-TRADE: OFF
+            </button>
+            <div class="speed-panel">
+                <button class="speed-btn active" onclick="setSpeed(4000, this)">1x</button>
+                <button class="speed-btn" onclick="setSpeed(100, this)">MAX</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <div class="ai-window hidden" id="ai-window">
+            <div class="ai-header">
+                <div>AEGIS SKYNET ADVISOR</div>
+                <div class="ai-status-indicator"></div>
+            </div>
+            <div class="ai-logs" id="ai-logs">
+                <div class="ai-log-entry"><span class="ai-log-time">[SYS]</span> AI Trading Engine Initialized.</div>
+            </div>
+        </div>
+
+        <div class="market-sidebar">
+            <div class="sidebar-account">
+                <div class="sb-acc-row">
+                    <span class="sb-acc-label">Purchasing Power</span>
+                    <span class="sb-acc-val" id="sb-cash" style="color: var(--up-color)">$50,000.00</span>
+                </div>
+                <div class="sb-acc-row">
+                    <span class="sb-acc-label">Net Liquidation</span>
+                    <span class="sb-acc-val" id="sb-portfolio">$50,000.00</span>
+                </div>
+                
+                <div class="all-time-box">
+                    <canvas id="allTimeCanvas"></canvas>
+                </div>
+                <div style="text-align:center; font-size: 0.6rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase;">All-Time Growth</div>
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Search 150+ assets..." onkeyup="updateUI(allTimeHistory[allTimeHistory.length-1])">
+            </div>
+            <div class="market-list" id="market-list"></div>
+        </div>
+
+        <div class="view-panel active" id="view-terminal">
+            <div id="company-details" class="hidden">
+                <h1 id="cv-name">Company Name</h1>
+                <h2 id="cv-price" style="font-size: 3rem;">$0.00</h2>
+                <div class="chart-container"><canvas id="priceChart"></canvas></div>
+                <div class="trade-panel">
+                    <div>
+                        Position: <strong id="cv-shares">0</strong> | 
+                        Avg Cost: <strong id="cv-avgcost">$0.00</strong> |
+                        Return: <strong id="cv-return">$0.00</strong>
+                    </div>
+                    <div>
+                        <input type="number" id="trade-qty" class="qty-input" value="10">
+                        <button class="action-btn btn-buy" onclick="executeTrade('buy', null, null)">BUY</button>
+                        <button class="action-btn btn-sell" onclick="executeTrade('sell', null, null)">SELL</button>
+                    </div>
+                </div>
+            </div>
+            <div id="welcome-msg" style="text-align: center; margin-top: 100px; color: var(--text-muted);">
+                <h2>Market Open.</h2>
+                <p>Select an asset from the sidebar or activate the AI Auto-Trader.</p>
+            </div>
+        </div>
+
+        <div class="view-panel" id="view-portfolio">
+            <h2>Active Positions</h2>
+            <div id="portfolio-body" style="margin-top:20px;"></div>
+        </div>
+
+        <div class="view-panel" id="view-research">
+            <h2>Research Database</h2>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Fundamental analysis of all listed assets.</p>
+            <div class="mock-panel"><h3>Asset Screener Active</h3></div>
+        </div>
+
+        <div class="view-panel" id="view-media">
+            <h2>Global Media Feed</h2>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Live market sentiment and breaking news.</p>
+            <div class="mock-panel"><i>Awaiting market events...</i></div>
+        </div>
+
+        <div class="view-panel" id="view-intelligence">
+            <h2>Aegis Probability Advisor</h2>
+            <div class="mock-panel" style="border-color: var(--accent);">
+                <p><strong>Status:</strong> <span id="ai-status">Monitoring data streams.</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cash = 50000;
+        let companies = {};
+        let selectedTicker = null;
+        let marketEpochs = 0;
+        let allTimeHistory = [50000]; 
+        let timer;
+        let aiActive = false;
+
+        function init() {
+            // Generate 150 Companies (Exact 10.5 Naming Convention)
+            const prefixes = ['Alpha', 'Nova', 'Quantum', 'Aegis', 'Cyber', 'Global', 'Apex', 'Omni', 'Synapse', 'Titan'];
+            const suffixes = ['Tech', 'Energy', 'Labs', 'Systems', 'Networks', 'Dynamics', 'Bio', 'Capital'];
+            
+            for(let i=0; i<150; i++) {
+                let name = prefixes[Math.floor(Math.random()*prefixes.length)] + " " + suffixes[Math.floor(Math.random()*suffixes.length)] + " " + (i+1);
+                let ticker = name.split(' ').map(w => w[0]).join('') + (i%10);
+                let price = Math.random() * 200 + 10;
+                companies[ticker] = {
+                    ticker: ticker, name: name, price: price, 
+                    intrinsicValue: price * (0.8 + Math.random()*0.4), 
+                    history: Array(60).fill(price), shares: 0, avgCost: 0, 
+                    momentum: 0, vol: (Math.random() * 0.015) + 0.005
+                };
+            }
+            companies['AIDX'] = { ticker: 'AIDX', name: 'Total Market Index', price: 500, intrinsicValue: 500, history: Array(60).fill(500), shares: 0, avgCost: 0, momentum: 0, vol: 0.004, isIndex: true };
+            
+            updateUI(50000);
+            timer = setInterval(simulateMarketTick, 4000);
+        }
+
+        function simulateMarketTick() {
+            marketEpochs++;
+            let totalStockValue = 0;
+            let mktOld = 0, mktNew = 0;
+
+            // Macro Economics (Realistic V11.1 Physics)
+            let marketCycle = Math.sin(marketEpochs * 0.02) * 0.0003; 
+            let macroDrift = 0.0001; 
+            let blackSwan = (Math.random() < 0.002) ? -0.05 : 0; 
+
+            Object.values(companies).forEach(c => {
+                if(c.isIndex) return;
+                mktOld += c.price;
+
+                // Elasticity (Pull to intrinsic value) - 0.02
+                let stretch = (c.intrinsicValue - c.price) / c.price;
+                
+                // Panic Factor - 1.2x on down moves
+                let panicFactor = (c.momentum < 0) ? 1.2 : 1.0;
+
+                // Momentum Persistence - 0.98
+                let noise = (Math.random() - 0.5) * 0.005;
+                c.momentum = (c.momentum * 0.98) + (stretch * 0.02) + noise;
+
+                if(c.momentum > 0.05) c.momentum = 0.05;
+                if(c.momentum < -0.05) c.momentum = -0.05;
+
+                let change = (marketCycle + macroDrift + c.momentum + blackSwan) * c.vol * panicFactor;
+                c.price *= (1 + change);
+                if(c.price < 0.01) c.price = 0.01; 
+
+                // Intrinsic Value randomly drifts
+                c.intrinsicValue *= (1 + (Math.random() - 0.498) * 0.001);
+
+                c.history.push(c.price);
+                if(c.history.length > 60) c.history.shift();
+                totalStockValue += (c.price * c.shares);
+                mktNew += c.price;
+            });
+
+            // Update Index Fund
+            let idx = companies['AIDX'];
+            idx.price *= (1 + (mktNew - mktOld)/mktOld);
+            idx.history.push(idx.price); if(idx.history.length > 60) idx.history.shift();
+            totalStockValue += (idx.price * idx.shares);
+
+            let netValue = cash + totalStockValue;
+            allTimeHistory.push(netValue);
+            
+            // Trigger Auto-Trader if active
+            if(aiActive) runAutoTrader();
+
+            updateUI(netValue);
+        }
+
+        // --- AI AUTO-TRADER ---
+        function toggleAI() {
+            aiActive = !aiActive;
+            const btn = document.getElementById('ai-toggle-btn');
+            const win = document.getElementById('ai-window');
+            
+            if(aiActive) {
+                btn.innerHTML = "<span>🤖</span> AUTO-TRADE: ON";
+                btn.classList.add('active');
+                win.classList.remove('hidden');
+                logAI("SYSTEM ONLINE. Scanning for Value Gaps and Momentum Shifts.");
+            } else {
+                btn.innerHTML = "<span>🤖</span> AUTO-TRADE: OFF";
+                btn.classList.remove('active');
+                win.classList.add('hidden');
+            }
+        }
+
+        function runAutoTrader() {
+            if(marketEpochs % 5 !== 0) return; // Execute trades every 5 ticks
+
+            let maxPositionSize = allTimeHistory[allTimeHistory.length-1] * 0.15; // Max 15% of portfolio per stock
+
+            // 1. SCAN FOR SELLS (Very important for locking in gains or stopping losses)
+            Object.values(companies).forEach(c => {
+                if(c.shares > 0) {
+                    // Reason A: Profit Taking (Price is 15% above intrinsic value, meaning it's in a bubble)
+                    let isOvervalued = c.price > (c.intrinsicValue * 1.15);
+                    
+                    // Reason B: Stop Loss (Momentum is heavily negative, preventing massive crashes)
+                    let isCrashing = c.momentum < -0.015;
+                    
+                    if(isOvervalued || isCrashing) {
+                        let qtyToSell = Math.ceil(c.shares * 0.5); // Sell half position to derisk
+                        executeTrade('sell', c.ticker, qtyToSell);
+                        
+                        let reason = isOvervalued ? "Profit Taken (Overvalued Bubble)" : "Stop-Loss Executed (Momentum Crash)";
+                        logAI(`SELL ${qtyToSell}x ${c.ticker} @ $${c.price.toFixed(2)} - ${reason}`, 'sell');
+                    }
+                }
+            });
+
+            // 2. SCAN FOR BUYS (Arbitrage)
+            let bestBuy = null;
+            let highestScore = 0;
+
+            Object.values(companies).forEach(c => {
+                if(c.isIndex) return;
+                
+                // Score based on how far below intrinsic value it is, plus positive momentum
+                let valueGap = (c.intrinsicValue - c.price) / c.price;
+                if(valueGap > 0.05 && c.momentum > 0.005) {
+                    let score = valueGap + c.momentum;
+                    if(score > highestScore) {
+                        highestScore = score;
+                        bestBuy = c;
+                    }
+                }
+            });
+
+            if(bestBuy && cash > 100) {
+                // Ensure we don't put all our money in one stock
+                let currentPositionValue = bestBuy.shares * bestBuy.price;
+                let availableToSpend = Math.min(cash, maxPositionSize - currentPositionValue);
+                
+                if (availableToSpend > bestBuy.price) {
+                    let qtyToBuy = Math.floor(availableToSpend / bestBuy.price);
+                    executeTrade('buy', bestBuy.ticker, qtyToBuy);
+                    logAI(`BUY ${qtyToBuy}x ${bestBuy.ticker} @ $${bestBuy.price.toFixed(2)} - Arbitrage Gap Detected`, 'buy');
+                }
+            }
+        }
+
+        function logAI(msg, type = 'sys') {
+            const logs = document.getElementById('ai-logs');
+            let time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            let classColor = type === 'buy' ? 'ai-log-buy' : type === 'sell' ? 'ai-log-sell' : '';
+            
+            let entry = document.createElement('div');
+            entry.className = 'ai-log-entry';
+            entry.innerHTML = `<span class="ai-log-time">[${time}]</span> <span class="${classColor}">${msg}</span>`;
+            
+            logs.appendChild(entry);
+            if(logs.children.length > 50) logs.removeChild(logs.firstChild); 
+            logs.scrollTop = logs.scrollHeight; 
+        }
+
+        // --- DRAWING CHARTS ---
+        function drawAllTimeChart() {
+            const canvas = document.getElementById('allTimeCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            let max = Math.max(...allTimeHistory), min = Math.min(...allTimeHistory), range = max - min || 1;
+            ctx.beginPath();
+            ctx.strokeStyle = allTimeHistory[allTimeHistory.length-1] >= 50000 ? '#0ecb81' : '#f6465d';
+            ctx.lineWidth = 2;
+
+            allTimeHistory.forEach((val, i) => {
+                let x = (i / (allTimeHistory.length - 1)) * canvas.width;
+                let y = canvas.height - ((val - min) / range) * canvas.height;
+                if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        function drawMainChart(comp) {
+            const canvas = document.getElementById('priceChart');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            ctx.clearRect(0,0, canvas.width, canvas.height);
+            
+            let history = comp.history;
+            let max = Math.max(...history), min = Math.min(...history), range = max - min || 1;
+            
+            ctx.beginPath();
+            ctx.strokeStyle = history[history.length-1] >= history[0] ? '#0ecb81' : '#f6465d';
+            ctx.lineWidth = 2;
+            history.forEach((p, i) => {
+                let x = (i/59) * canvas.width, y = canvas.height - ((p-min)/range) * canvas.height;
+                if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            });
+            ctx.stroke();
+        }
+
+        // --- UI & TRADING ---
+        function updateUI(netValue) {
+            document.getElementById('sb-cash').innerText = "$" + cash.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.getElementById('sb-portfolio').innerText = "$" + netValue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+            
+            let listHTML = '';
+            let filterText = document.getElementById('search-input') ? document.getElementById('search-input').value.toLowerCase() : '';
+            
+            Object.values(companies).forEach(c => {
+                if(filterText && !c.ticker.toLowerCase().includes(filterText) && !c.name.toLowerCase().includes(filterText)) return;
+                
+                listHTML += `<div class="stock-item ${selectedTicker===c.ticker?'active':''}" onclick="selectCompany('${c.ticker}')">
+                    <span style="font-weight:bold">${c.ticker}</span>
+                    <span class="${c.price >= c.history[c.history.length-2] ? 'up' : 'down'}">$${c.price.toFixed(2)}</span>
+                </div>`;
+            });
+            document.getElementById('market-list').innerHTML = listHTML;
+
+            if(selectedTicker) {
+                let c = companies[selectedTicker];
+                document.getElementById('cv-name').innerText = c.name + " (" + c.ticker + ")";
+                document.getElementById('cv-price').innerText = "$" + c.price.toFixed(2);
+                document.getElementById('cv-shares').innerText = c.shares;
+                document.getElementById('cv-avgcost').innerText = "$" + c.avgCost.toFixed(2);
+                
+                let pl = (c.price - c.avgCost) * c.shares;
+                let plEl = document.getElementById('cv-return');
+                plEl.innerText = (pl >= 0 ? "+$" : "-$") + Math.abs(pl).toFixed(2);
+                plEl.className = pl >= 0 ? "up" : "down";
+                
+                drawMainChart(c);
+            }
+
+            updatePortfolioTab();
+            drawAllTimeChart();
+        }
+
+        function updatePortfolioTab() {
+            let html = '';
+            Object.values(companies).forEach(c => {
+                if(c.shares > 0) {
+                    let pl = ((c.price - c.avgCost) / c.avgCost) * 100;
+                    html += `<div class="mock-panel" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div><h3>${c.ticker}</h3><p style="color:var(--text-muted)">Shares: ${c.shares} @ $${c.avgCost.toFixed(2)}</p></div>
+                        <h3 class="${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '+' : ''}${pl.toFixed(2)}%</h3>
+                    </div>`;
+                }
+            });
+            document.getElementById('portfolio-body').innerHTML = html || "<p style='color:var(--text-muted)'>No active positions.</p>";
+        }
+
+        function selectCompany(t) { 
+            selectedTicker = t; 
+            document.getElementById('company-details').classList.remove('hidden'); 
+            document.getElementById('welcome-msg').classList.add('hidden');
+            updateUI(allTimeHistory[allTimeHistory.length-1]); 
+        }
+        
+        function setSpeed(ms, btn) {
+            clearInterval(timer);
+            timer = setInterval(simulateMarketTick, ms);
+            document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function executeTrade(type, tickerTarget, forcedQty) {
+            let target = tickerTarget || selectedTicker;
+            if(!target) return;
+            
+            let c = companies[target];
+            let qty = forcedQty !== null ? forcedQty : parseInt(document.getElementById('trade-qty').value);
+            
+            if(qty <= 0 || isNaN(qty)) return;
+
+            if(type==='buy' && cash >= c.price * qty) {
+                cash -= c.price * qty;
+                c.avgCost = ((c.shares * c.avgCost) + (c.price * qty)) / (c.shares + qty);
+                c.shares += qty;
+            } else if(type==='sell' && c.shares >= qty) {
+                cash += c.price * qty;
+                c.shares -= qty;
+                if(c.shares === 0) c.avgCost = 0;
+            }
+            updateUI(allTimeHistory[allTimeHistory.length-1]);
+        }
+
+        function switchTab(t) {
+            document.querySelectorAll('.view-panel').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('view-' + t).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        window.addEventListener('resize', () => { drawAllTimeChart(); if(selectedTicker) drawMainChart(companies[selectedTicker]); });
+
+        init();
+    </script>
+</body>
+</html>
